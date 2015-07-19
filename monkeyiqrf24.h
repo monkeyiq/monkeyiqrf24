@@ -1,13 +1,11 @@
 
 #include <Streaming.h>
 #include <SPI.h>
-#include "nRF24L01.h"
-#include "RF24.h"
 
 
 
 struct radiomsg;
-class rf24
+class monkeyiqrf24
 {
     RF24 m_radio;
     bool m_debug;
@@ -16,30 +14,34 @@ class rf24
     char m_buf[m_bufsz+1];
     
   public:
-    rf24( bool client = true, bool debug = false )
+  monkeyiqrf24( bool client = true, bool debug = false )
         : m_radio( 9,10 )
         , m_debug( debug )
     {
        m_pipes[0] = 0xF0F0F0F0E1LL;
        m_pipes[1] = 0xF0F0F0F0D2LL;
-       if( !client )
-       {
-          m_pipes[1] = 0xF0F0F0F0E1LL;
-          m_pipes[0] = 0xF0F0F0F0D2LL;
-       }
+       /* if( !client ) */
+       /* { */
+       /*    m_pipes[1] = 0xF0F0F0F0E1LL; */
+       /*    m_pipes[0] = 0xF0F0F0F0D2LL; */
+       /* } */
 
-       radio.begin();
-       radio.setRetries(15,15);
-       
-       // write mode.
-       radio.openWritingPipe(pipes[0]);
-       radio.openReadingPipe(1,pipes[1]);  
-       
-       radio.startListening();
-       if( m_debug ) 
-           radio.printDetails();
     }
 
+    void setup()
+    {
+       m_radio.begin();
+       m_radio.setRetries(15,15);
+       
+       // write mode.
+       m_radio.openWritingPipe(m_pipes[0]);
+       m_radio.openReadingPipe(1,m_pipes[1]);  
+       
+       m_radio.startListening();
+       if( m_debug ) 
+           m_radio.printDetails();
+    }
+    
     struct radiomsg* tryGetMessage()
     {
         if ( m_radio.available() ) {
@@ -58,8 +60,18 @@ class rf24
     */
     void maybeSleep()
     {
-        wait(0.02);
-    }    
+        delay(20);
+    }
+
+    template< class RM >
+    bool sendMessage( RM& m )
+    {
+        m_radio.stopListening();
+        bool ok = m_radio.write( &m, sizeof(RM) );
+        m_radio.startListening();
+        return ok;
+    }
+    
 };
 
 
