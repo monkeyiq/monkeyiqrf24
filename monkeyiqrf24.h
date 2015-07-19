@@ -12,11 +12,15 @@ class monkeyiqrf24
     uint64_t m_pipes[2];
     enum { m_bufsz = 100 };
     char m_buf[m_bufsz+1];
+    void (*m_timeoutFunction)();
+    unsigned long m_LastMessageTime;
     
   public:
   monkeyiqrf24( bool client = true, bool debug = false )
         : m_radio( 9,10 )
         , m_debug( debug )
+        , m_timeoutFunction(0)
+        , m_LastMessageTime(0)
     {
        m_pipes[0] = 0xF0F0F0F0E1LL;
        m_pipes[1] = 0xF0F0F0F0D2LL;
@@ -44,11 +48,20 @@ class monkeyiqrf24
     
     struct radiomsg* tryGetMessage()
     {
+        unsigned long t = millis();
+
         if ( m_radio.available() ) {
             memset( m_buf, 0, m_bufsz );
             m_radio.read( m_buf, m_bufsz );
             struct radiomsg* msg = (struct radiomsg*)m_buf;
+            m_LastMessageTime = t;
             return msg;
+        }
+        if( m_LastMessageTime && t - m_LastMessageTime > 500 )
+        {
+            m_LastMessageTime = 0;
+            if( m_timeoutFunction )
+                m_timeoutFunction();
         }
         return 0;
     }
@@ -71,7 +84,13 @@ class monkeyiqrf24
         m_radio.startListening();
         return ok;
     }
+
+    void setTimeout( void (*func)() )
+    {
+        m_timeoutFunction = func;
+    }
     
+
 };
 
 
